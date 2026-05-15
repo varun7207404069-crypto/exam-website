@@ -1,0 +1,3 @@
+// PASTE YOUR SYLLABUS HERE
+// The AI will automatically read this file when generating questions for the Viva session.
+// Make sure to include all topics you want the AI to ask questions about.
