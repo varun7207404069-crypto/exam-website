@@ -45,7 +45,12 @@ const QuestionPage = () => {
     const [shuffledOptions, setShuffledOptions] = useState([]);
     const [sessionId, setSessionId] = useState(null);
     const isFirstLoadRef = useRef(true); 
-    const [examReady, setExamReady] = useState(false);
+    const isApiFSInit = !!(document.fullscreenElement
+        || document.webkitFullscreenElement
+        || document.mozFullScreenElement
+        || document.msFullscreenElement);
+    const isF11FSInit = window.matchMedia('(display-mode: fullscreen)').matches || Math.abs(window.screen.height - window.innerHeight) <= 3;
+    const [examReady, setExamReady] = useState(isApiFSInit || isF11FSInit);
     const [fsError, setFsError] = useState('');
     const [fsLoading, setFsLoading] = useState(false);
     const isHandlingFinishRef = useRef(false);
@@ -195,7 +200,9 @@ const QuestionPage = () => {
         // Lockdown: silently enforce exam environment — NO violations triggered here
         const handleFullscreenChange = () => {
             if (isDebug) return;
-            const current = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            const isApiFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+            const isF11FS = window.matchMedia('(display-mode: fullscreen)').matches || Math.abs(window.screen.height - window.innerHeight) <= 3;
+            const current = isApiFS || isF11FS;
             setIsFullscreen(current);
             if (!current) {
                 triggerViolation("Exited fullscreen mode. Exam cancelled.", true);
@@ -246,7 +253,9 @@ const QuestionPage = () => {
 
         const timer = setInterval(() => {
             const isGraceActive = isFirstLoadRef.current;
-            const currentFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            const isApiFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+            const isF11FS = window.matchMedia('(display-mode: fullscreen)').matches || Math.abs(window.screen.height - window.innerHeight) <= 3;
+            const currentFS = isApiFS || isF11FS;
             
             // Sync state just in case
             if (currentFS !== isFullscreen) setIsFullscreen(currentFS);
@@ -265,8 +274,8 @@ const QuestionPage = () => {
         lockNewTabs();
 
         window.addEventListener('popstate', handlePopState);
-        window.addEventListener('fullscreenchange', handleFullscreenChange);
-        window.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('contextmenu', preventCheating);
@@ -280,8 +289,8 @@ const QuestionPage = () => {
             if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
             unlockNewTabs();
             window.removeEventListener('popstate', handlePopState);
-            window.removeEventListener('fullscreenchange', handleFullscreenChange);
-            window.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('contextmenu', preventCheating);
@@ -289,7 +298,7 @@ const QuestionPage = () => {
             window.removeEventListener('selectstart', preventCheating);
             window.removeEventListener('keydown', preventCheating, true);
         };
-    }, [showReport, question]);
+    }, [showReport, question, examReady]);
 
     // AI Proctoring Effect
     useEffect(() => {
@@ -366,8 +375,8 @@ const QuestionPage = () => {
                                 const face = faces[0];
                                 const probability = face.probability ? (Array.isArray(face.probability) ? face.probability[0] : face.probability) : 1.0;
                                 
-                                // Stricter threshold for face obstruction/camera covering
-                                if (probability < 0.90) {
+                                // INCREASED: Stricter threshold for face obstruction/camera covering
+                                if (probability < 0.97) {
                                     triggerViolation("Face partially covered or obstructed. Please ensure your full face is visible.", false, true);
                                     return;
                                 }
@@ -388,7 +397,7 @@ const QuestionPage = () => {
 
                                 // Check if face is too far
                                 const faceWidth = x2 - x1;
-                                if (faceWidth < vW * 0.1) { // Decreased min size for less strictness
+                                if (faceWidth < vW * 0.1) { // Min size
                                     triggerViolation("Face is too far from the camera.");
                                     return;
                                 }
@@ -400,7 +409,24 @@ const QuestionPage = () => {
                                 const nose = face.landmarks[2];
                                 const mouth = face.landmarks[3];
 
-                                // 1. Mouth Opening Detection (Visual Talking)
+                                // 1. STRICTOR: Landmark Consistency Check (Detect hands over face)
+                                if (rightEye && leftEye && nose && mouth) {
+                                    const eyeDist = Math.abs(rightEye[0] - leftEye[0]);
+                                    // If eyes are too close together relative to face width, it's likely an occlusion/hand
+                                    if (eyeDist < faceWidth * 0.2) {
+                                        triggerViolation("Face obstructed. Please remove your hand from your face.", false, true);
+                                        return;
+                                    }
+
+                                    // Check vertical alignment: Eyes > Nose > Mouth
+                                    // Note: Y coordinates increase downwards
+                                    if (rightEye[1] > nose[1] || leftEye[1] > nose[1] || nose[1] > mouth[1]) {
+                                        triggerViolation("Face structure distorted. Please ensure your full face is visible.", false, true);
+                                        return;
+                                    }
+                                }
+
+                                // 2. Mouth Opening Detection (Visual Talking)
                                 if (mouth && nose) {
                                     const dist = Math.sqrt(Math.pow(mouth[0] - nose[0], 2) + Math.pow(mouth[1] - nose[1], 2));
                                     const faceHeight = y2 - y1;
@@ -411,7 +437,7 @@ const QuestionPage = () => {
                                     }
                                 }
 
-                                // 2. Head Turn Detection
+                                // 3. Head Turn Detection
                                 if (nose && rightEye && leftEye) {
                                     const distRight = Math.abs(nose[0] - rightEye[0]);
                                     const distLeft = Math.abs(leftEye[0] - nose[0]);
@@ -462,15 +488,7 @@ const QuestionPage = () => {
         };
     }, [showReport, question, aiModelsLoaded]);
 
-    // Whenever warning modal appears, aggressively lock fullscreen
-    // (runs AFTER React renders the modal, so browser allows re-entry)
-    useEffect(() => {
-        if (showWarning) {
-            // Small delay ensures the modal is painted before requesting fullscreen
-            const t = setTimeout(() => enterFullscreen(), 80);
-            return () => clearTimeout(t);
-        }
-    }, [showWarning]);
+    // Warning modal relies on the user clicking the dismiss button to re-enter fullscreen.
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
@@ -593,7 +611,7 @@ const QuestionPage = () => {
         setTestResults(null);
         
         try {
-            const testCases = JSON.parse(question.test_cases);
+            const testCases = typeof question.test_cases === 'string' ? JSON.parse(question.test_cases) : question.test_cases;
             const res = await fetch('http://localhost:8000/run-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -607,12 +625,28 @@ const QuestionPage = () => {
             if (!res.ok) throw new Error("Execution failed");
             
             const data = await res.json();
-            setTestResults(data);
+            // Ensure data is an array to avoid crashes
+            setTestResults(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
-            alert("Failed to run code. Please check your connection.");
+            alert("Failed to run code. Please check your connection or syntax.");
+            setTestResults([]); // Reset to empty array on error
         } finally {
             setRunningCode(false);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = e.target.selectionStart;
+            const end = e.target.selectionEnd;
+            const newValue = code.substring(0, start) + "    " + code.substring(end);
+            setCode(newValue);
+            // Use setTimeout to ensure the cursor position is updated after the state change
+            setTimeout(() => {
+                e.target.selectionStart = e.target.selectionEnd = start + 4;
+            }, 0);
         }
     };
 
@@ -948,8 +982,15 @@ const QuestionPage = () => {
                     // No answer provided in Viva mode
                     isCurrentCorrect = false;
                     currentFeedback = "No verbal response was provided for this question.";
+                } else if (!quizMode && !vivaMode) {
+                    // Coding mode evaluation: if at least one testcase is passed, mark as correct to award score credit
+                    const anyPassed = testResults && Array.isArray(testResults) && testResults.length > 0 && testResults.some(r => r.passed);
+                    isCurrentCorrect = anyPassed;
+                    currentFeedback = anyPassed 
+                        ? `Passed ${testResults.filter(r => r.passed).length} of ${testResults.length} test cases.` 
+                        : "All test cases failed. Please review your code logic.";
                 } else {
-                    // MCQ/Coding mode
+                    // MCQ mode
                     isCurrentCorrect = selectedOption === question.output_format;
                     currentFeedback = question.explanation || "No explanation provided.";
                 }
@@ -1026,57 +1067,64 @@ const QuestionPage = () => {
     // Browsers REQUIRE a user gesture (click) to enter fullscreen.
     // We check if fullscreen ACTUALLY succeeded before allowing the exam to start.
     if (!examReady) {
-        const handleEnterExam = async () => {
+        const handleEnterExam = () => {
+            const elem = document.documentElement;
+            const req = elem.requestFullscreen
+                || elem.webkitRequestFullscreen
+                || elem.mozRequestFullScreen
+                || elem.msRequestFullscreen;
+
+            if (!req) {
+                setFsError('❌ Your browser strictly blocks the Fullscreen API. The exam cannot start unless it is in full-screen mode. Please try using a modern browser like Chrome or Edge.');
+                return;
+            }
+
             setFsLoading(true);
             setFsError('');
-            try {
-                const elem = document.documentElement;
-                const req = elem.requestFullscreen
-                    || elem.webkitRequestFullscreen
-                    || elem.mozRequestFullScreen
-                    || elem.msRequestFullscreen;
 
-                if (!req) {
-                    // Browser doesn't support fullscreen API — allow anyway with a warning
-                    setFsError('⚠️ Your browser does not support fullscreen. The exam will run in window mode. Violations will still be tracked.');
-                    setTimeout(() => { setExamReady(true); }, 2000);
-                    return;
-                }
+            // Call requestFullscreen synchronously within the click call stack
+            const promise = req.call(elem);
+            if (promise && typeof promise.then === 'function') {
+                promise.then(() => {
+                    const isApiFS = !!(document.fullscreenElement
+                        || document.webkitFullscreenElement
+                        || document.mozFullScreenElement
+                        || document.msFullscreenElement);
+                    const isF11FS = window.matchMedia('(display-mode: fullscreen)').matches || Math.abs(window.screen.height - window.innerHeight) <= 3;
+                    const isNowFullscreen = isApiFS || isF11FS;
 
-                await req.call(elem);
-
-                // Wait a tick for the fullscreen state to propagate
-                await new Promise(r => setTimeout(r, 300));
-
-                const isNowFullscreen = !!(document.fullscreenElement
-                    || document.webkitFullscreenElement
-                    || document.mozFullScreenElement
-                    || document.msFullscreenElement);
-
-                if (isNowFullscreen) {
-                    setIsFullscreen(true);
-                    setExamReady(true);
-                } else {
-                    setFsError('❌ Fullscreen was not granted. Please click the button again and select "Allow" when your browser asks for permission.');
-                }
-            } catch (e) {
-                console.warn('Fullscreen request failed:', e);
-                if (e.name === 'NotAllowedError') {
-                    setFsError('❌ Fullscreen was blocked by your browser. Please click the address bar area, then try again. Or press F11 to manually enter fullscreen.');
-                } else {
-                    setFsError(`❌ Fullscreen failed: ${e.message}. Try pressing F11 to enter fullscreen manually, then click the button.`);
-                }
-            } finally {
+                    if (isNowFullscreen) {
+                        setIsFullscreen(true);
+                        setExamReady(true);
+                    } else {
+                        setFsError('❌ Fullscreen was not granted. Please click the button again and select "Allow" when your browser asks for permission.');
+                    }
+                    setFsLoading(false);
+                }).catch(e => {
+                    console.warn('Fullscreen request failed:', e);
+                    setFsLoading(false);
+                    if (e.name === 'NotAllowedError') {
+                        setFsError('❌ Fullscreen was blocked by your browser. Please click the address bar area, then try again. Or press F11 to manually enter fullscreen.');
+                    } else {
+                        setFsError(`❌ Fullscreen failed: ${e.message}. Try pressing F11 to enter fullscreen manually, then click the button.`);
+                    }
+                });
+            } else {
+                // Older browsers/environments that execute synchronously
+                setIsFullscreen(true);
+                setExamReady(true);
                 setFsLoading(false);
             }
         };
 
         const handleF11Fallback = () => {
             // If user pressed F11 manually, they may be in fullscreen now — check and proceed
-            const isNowFullscreen = !!(document.fullscreenElement
+            const isApiFS = !!(document.fullscreenElement
                 || document.webkitFullscreenElement
                 || document.mozFullScreenElement
                 || document.msFullscreenElement);
+            const isF11FS = window.matchMedia('(display-mode: fullscreen)').matches || Math.abs(window.screen.height - window.innerHeight) <= 3;
+            const isNowFullscreen = isApiFS || isF11FS;
             if (isNowFullscreen) {
                 setIsFullscreen(true);
                 setExamReady(true);
@@ -1176,25 +1224,24 @@ const QuestionPage = () => {
                         ${fsLoading ? '⏳ Requesting fullscreen...' : '🖥️  Enter Fullscreen & Start Exam'}
                     </button>
 
-                    ${fsError ? html`
-                        <button
-                            onClick=${handleF11Fallback}
-                            style=${{
-                                width: '100%',
-                                marginTop: '0.75rem',
-                                padding: '0.75rem 2rem',
-                                background: 'transparent',
-                                color: 'var(--text-secondary)',
-                                border: '1px solid var(--border-dim)',
-                                borderRadius: '10px',
-                                fontSize: '0.9rem',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            I pressed F11 manually — Start Exam
-                        </button>
-                    ` : ''}
+                    <button
+                        onClick=${handleF11Fallback}
+                        style=${{
+                            width: '100%',
+                            marginTop: '0.75rem',
+                            padding: '0.75rem 2rem',
+                            background: 'transparent',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-dim)',
+                            borderRadius: '10px',
+                            fontSize: '0.9rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        ⌨️ I pressed F11 manually — Start Exam
+                    </button>
 
                     <p style=${{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '1rem' }}>
                         If blocked, press <strong>F11</strong> on your keyboard to go fullscreen, then click the button above.
@@ -1470,7 +1517,7 @@ const QuestionPage = () => {
             </div>
         ` : ''}
 
-            ${!(document.fullscreenElement || document.webkitFullscreenElement) && examReady && !showReport && !isDebug ? html`
+            ${!isFullscreen && examReady && !showReport && !isDebug ? html`
                 <div style=${{
                     position: 'fixed',
                     top: 0, left: 0, width: '100vw', height: '100vh',
@@ -1692,21 +1739,24 @@ const QuestionPage = () => {
                     </div>
                     
                     ${(!quizMode && !vivaMode) ? html`
-                        <div className="editor-panel glass">
-                            <div style=${{padding: '1rem', borderBottom: '1px solid var(--border-dim)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <div className="editor-panel glass" style=${{display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden'}}>
+                            <div style=${{padding: '1rem', borderBottom: '1px solid var(--border-dim)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)'}}>
                                 <div style=${{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-                                    <span>Jarvis IDE</span>
+                                    <div style=${{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <span style=${{color: 'var(--primary-accent)', fontSize: '1.2rem'}}>💻</span>
+                                        <span style=${{fontWeight: '700', letterSpacing: '0.5px'}}>Jarvis IDE v3.0</span>
+                                    </div>
                                     <button 
                                         onClick=${runCode} 
                                         disabled=${runningCode}
                                         className="btn btn-primary" 
-                                        style=${{padding: '4px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 4px 12px rgba(34,197,94,0.3)'}}
+                                        style=${{padding: '6px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', borderRadius: '8px'}}
                                     >
-                                        <span>${runningCode ? '⌛' : '▶'}</span> ${runningCode ? 'Running...' : 'Run & Verify'}
+                                        <span>${runningCode ? '⏳' : '▶'}</span> ${runningCode ? 'Running...' : 'Run & Verify'}
                                     </button>
                                 </div>
                                 <div style=${{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                    <span style=${{fontSize: '0.75rem', color: 'var(--text-muted)'}}>Language:</span>
+                                    <span style=${{fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold'}}>Language:</span>
                                     <select 
                                         value=${language} 
                                         onChange=${(e) => setLanguage(e.target.value)} 
@@ -1718,44 +1768,95 @@ const QuestionPage = () => {
                                             background: 'rgba(255,255,255,0.05)', 
                                             color: 'var(--text-primary)',
                                             border: '1px solid var(--border-dim)',
-                                            cursor: 'pointer'
+                                            cursor: 'pointer',
+                                            fontWeight: '600'
                                         }}
                                     >
                                         ${languages.map(lang => html`<option value=${lang} style=${{background: '#1e293b'}}>${lang}</option>`)}
                                     </select>
                                 </div>
                             </div>
-                            <textarea className="editor-textarea" value=${code} onChange=${(e) => setCode(e.target.value)} placeholder=${`Write your ${language} code here...`}></textarea>
                             
-                            ${testResults ? html`
-                                <div className="results-panel" style=${{padding: '1rem', borderTop: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.3)', maxHeight: '200px', overflowY: 'auto'}}>
-                                    <div style=${{display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem'}}>
-                                        <h4 style=${{fontSize: '0.9rem', margin: 0}}>Test Results</h4>
-                                        <span style=${{fontSize: '0.8rem', color: testResults.every(r => r.passed) ? '#22c55e' : '#ef4444'}}>
-                                            ${testResults.filter(r => r.passed).length} / ${testResults.length} Passed
+                            <div style=${{flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', background: 'rgba(0,0,0,0.4)'}}>
+                                <!-- Line Numbers Sidebar -->
+                                <div style=${{
+                                    width: '45px', 
+                                    background: 'rgba(0,0,0,0.3)', 
+                                    borderRight: '1px solid var(--border-dim)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    paddingTop: '2rem',
+                                    paddingBottom: '2rem',
+                                    alignItems: 'center',
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'monospace',
+                                    userSelect: 'none',
+                                    lineHeight: '1.7'
+                                }}>
+                                    ${code.split('\n').map((_, i) => html`<div key=${i}>${i + 1}</div>`)}
+                                </div>
+                                
+                                <textarea 
+                                    className="editor-textarea" 
+                                    value=${code} 
+                                    onChange=${(e) => setCode(e.target.value)} 
+                                    onKeyDown=${handleKeyDown}
+                                    placeholder=${`Write your ${language} code here...`}
+                                    style=${{
+                                        flex: 1,
+                                        border: 'none',
+                                        borderRadius: 0,
+                                        padding: '2rem 1.5rem',
+                                        background: 'transparent',
+                                        height: '100%'
+                                    }}
+                                ></textarea>
+                            </div>
+                            
+                            ${(testResults && Array.isArray(testResults)) ? html`
+                                <div className="results-panel" style=${{padding: '1.25rem', borderTop: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.5)', maxHeight: '250px', overflowY: 'auto'}}>
+                                    <div style=${{display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center'}}>
+                                        <h4 style=${{fontSize: '0.95rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                            <span style=${{color: 'var(--primary-accent)'}}>📊</span> Execution Summary
+                                        </h4>
+                                        <span style=${{
+                                            fontSize: '0.85rem', 
+                                            fontWeight: 'bold',
+                                            padding: '4px 12px',
+                                            borderRadius: '20px',
+                                            background: testResults.length > 0 && testResults.some(r => r.passed) ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                                            color: testResults.length > 0 && testResults.some(r => r.passed) ? '#22c55e' : '#ef4444'
+                                        }}>
+                                            ${testResults.filter(r => r.passed).length} / ${testResults.length} Test Cases Passed
                                         </span>
                                     </div>
-                                    <div style=${{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                                    <div style=${{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
                                         ${testResults.map((res, i) => html`
-                                            <div style=${{
-                                                padding: '0.75rem', 
-                                                borderRadius: '8px', 
-                                                background: res.passed ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-                                                border: `1px solid ${res.passed ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                                            <div key=${i} style=${{
+                                                padding: '1rem', 
+                                                borderRadius: '12px', 
+                                                background: res.passed ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
+                                                border: `1px solid ${res.passed ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`,
                                                 fontSize: '0.85rem'
                                             }}>
-                                                <div style=${{display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem'}}>
-                                                    <span style=${{fontWeight: 'bold'}}>Test Case ${i + 1}</span>
-                                                    <span style=${{color: res.passed ? '#22c55e' : '#ef4444'}}>${res.passed ? '✓ Passed' : '✗ Failed'}</span>
+                                                <div style=${{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
+                                                    <span style=${{fontWeight: '700', color: 'var(--text-primary)'}}>Test Case #${i + 1}</span>
+                                                    <span style=${{color: res.passed ? '#22c55e' : '#ef4444', fontWeight: 'bold'}}>${res.passed ? 'PASSED ✓' : 'FAILED ✗'}</span>
                                                 </div>
                                                 ${!res.passed && html`
-                                                    <div style=${{marginTop: '0.5rem', color: 'var(--text-secondary)'}}>
-                                                        <div>Input: <code style=${{color: '#fff'}}>${res.input}</code></div>
+                                                    <div style=${{marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem'}}>
+                                                        <div style=${{color: 'var(--text-secondary)'}}>Input: <code style=${{color: '#f8fafc', background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: '4px'}}>${res.input}</code></div>
                                                         <div style=${{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.25rem'}}>
-                                                            <div>Expected: <code style=${{color: '#22c55e'}}>${res.expected}</code></div>
-                                                            <div>Got: <code style=${{color: '#ef4444'}}>${res.actual || 'No output'}</code></div>
+                                                            <div style=${{color: 'var(--text-secondary)'}}>Expected: <code style=${{color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '2px 6px', borderRadius: '4px'}}>${res.expected}</code></div>
+                                                            <div style=${{color: 'var(--text-secondary)'}}>Actual: <code style=${{color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '4px'}}>${res.actual || 'No output'}</code></div>
                                                         </div>
-                                                        ${res.error && html`<div style=${{marginTop: '0.5rem', color: '#ef4444', fontSize: '0.75rem'}}>Error: ${res.error}</div>`}
+                                                        ${res.error && html`
+                                                            <div style=${{marginTop: '0.5rem', padding: '0.75rem', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)'}}>
+                                                                <div style=${{color: '#ef4444', fontWeight: 'bold', marginBottom: '4px', fontSize: '0.75rem'}}>Runtime Error / Traceback:</div>
+                                                                <pre style=${{margin: 0, color: '#fca5a5', whiteSpace: 'pre-wrap', fontSize: '0.75rem', fontFamily: 'monospace'}}>${res.error}</pre>
+                                                            </div>
+                                                        `}
                                                     </div>
                                                 `}
                                             </div>

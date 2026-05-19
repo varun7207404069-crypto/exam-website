@@ -17,6 +17,31 @@ const ProtectedRoute = ({ isLoggedIn, children }) => {
     return children;
 };
 
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error, errorInfo) {
+        console.error("Application Error:", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return html`
+                <div style=${{ padding: '4rem', textAlign: 'center', background: '#0f172a', color: '#fff', minHeight: '100vh' }}>
+                    <h1 style=${{ color: '#ef4444', marginBottom: '1rem' }}>Something went wrong</h1>
+                    <p style=${{ color: '#94a3b8', marginBottom: '2rem' }}>${this.state.error?.message || 'A runtime error occurred.'}</p>
+                    <button className="btn btn-primary" onClick=${() => window.location.href = '/'}>Return Home</button>
+                </div>
+            `;
+        }
+        return this.props.children;
+    }
+}
+
 const App = () => {
     const [isLight, setIsLight] = useState(localStorage.getItem('theme') === 'light');
     const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('user'));
@@ -86,4 +111,4 @@ const App = () => {
 };
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(html`<${App} />`);
+root.render(html`<${ErrorBoundary}><${App} /></${ErrorBoundary}>`);

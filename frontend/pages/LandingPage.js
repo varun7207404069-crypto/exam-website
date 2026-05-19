@@ -15,15 +15,15 @@ const LandingPage = () => {
     };
 
     const subjects = [
-        { name: 'Data Structures',                    icon: '🌳', description: 'Arrays, Trees, Graphs, and advanced data organization.' },
-        { name: 'Database Management Systems',        icon: '🗄️', description: 'SQL, normalization, transactions, and query optimization.' },
-        { name: 'OOPs through JAVA',                  icon: '☕', description: 'Object-oriented design patterns and JAVA programming.' },
-        { name: 'Operating Systems',                  icon: '🖥️', description: 'Process management, memory, and file systems.' },
-        { name: 'Computer Networks',                  icon: '🌐', description: 'Protocols, TCP/IP, routing, and network security.' },
-        { name: 'Machine Learning',                   icon: '🤖', description: 'Supervised, unsupervised, and deep learning models.' },
-        { name: 'Cryptography & Network Security',    icon: '🔐', description: 'Encryption, ciphers, PKI, and secure communication.' },
-        { name: 'Cloud Computing',                    icon: '☁️', description: 'AWS, Azure, virtualization, and cloud-native services.' },
-        { name: 'Introduction to Artificial Intelligence', icon: '🧠', description: 'Search, logic, knowledge representation, and AI agents.' },
+        { name: 'Data Structures',                    description: 'Arrays, Trees, Graphs, and advanced data organization.' },
+        { name: 'Database Management Systems',        description: 'SQL, normalization, transactions, and query optimization.' },
+        { name: 'OOPs through JAVA',                  description: 'Object-oriented design patterns and JAVA programming.' },
+        { name: 'Operating Systems',                  description: 'Process management, memory, and file systems.' },
+        { name: 'Computer Networks',                  description: 'Protocols, TCP/IP, routing, and network security.' },
+        { name: 'Machine Learning',                   description: 'Supervised, unsupervised, and deep learning models.' },
+        { name: 'Cryptography & Network Security',    description: 'Encryption, ciphers, PKI, and secure communication.' },
+        { name: 'Cloud Computing',                    description: 'AWS, Azure, virtualization, and cloud-native services.' },
+        { name: 'Introduction to Artificial Intelligence', description: 'Search, logic, knowledge representation, and AI agents.' },
     ];
 
     return html`

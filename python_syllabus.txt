@@ -1,0 +1,25 @@
+Textbook Source: 'Learning Python', 5th Edition by Mark Lutz (O'Reilly)
+
+Core Python Syllabus Topics:
+1. Python Concepts: Why Python, execution model (PVM), bytecode.
+2. Built-in Types:
+   - Numbers: Integers, floats, decimals, fractions.
+   - Strings: Formatting, slicing, methods, Unicode.
+   - Lists: Comprehensions, indexing, methods.
+   - Dictionaries: Key-value operations, nesting.
+   - Tuples, Files, Sets.
+3. Statements:
+   - Assignments: augmented, multiple-target.
+   - Flow Control: if/elif/else, while/else, for/else.
+   - Iterations: range, zip, map, enumerate.
+4. Functions:
+   - Scopes: LEGB rule (Local, Enclosing, Global, Built-in).
+   - Arguments: *args, **kwargs, defaults, keyword-only.
+   - Advanced: Lambdas, generators, yields, functional tools.
+5. Modules: Import search path, packages (__init__.py), namespace management.
+6. Classes (OOP):
+   - Inheritance, Operator Overloading (__init__, __str__, __add__, etc.).
+   - Designing with Classes: composition vs inheritance.
+   - Advanced Classes: Static/Class methods, Slots, Properties.
+7. Exceptions: try/except/finally, raise, assert, custom exceptions.
+8. Advanced Tools: Managed attributes, Decorators, Metaclasses.

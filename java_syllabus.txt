@@ -1,0 +1,36 @@
+### Java Programming Syllabus (Based on Javanotes 5.0)
+
+Module 1: Foundations & Overview
+* The Mental Landscape: Fetch-and-execute cycle, Machine language vs. High-level languages, the Java Virtual Machine (JVM).
+* Fundamental Elements: Basic language syntax, Object-Oriented Programming (OOP) concepts, and the modern user interface.
+
+Module 2: Programming in the Small (Basics)
+* Names and Things: Variables, primitive data types (int, double, boolean, etc.), and the String object.
+* Input and Output: Text I/O, expressions, and operators.
+* Control Structures: Blocks, loops (while, do..while, for), branching (if, switch), and basic Exception handling (try..catch).
+
+Module 3: Programming in the Large I (Subroutines & Design)
+* Subroutines: Static subroutines, static variables, and procedural abstraction.
+* Parameters & Return Values: Using formal/actual parameters and returning data.
+* APIs and Packages: Using Java's standard packages and generating documentation via Javadoc.
+* Program Design: Preconditions, postconditions, and modular design.
+
+Module 4: Programming in the Large II (Objects & Classes)
+* Object-Oriented Design: Instance methods, instance variables, and constructors.
+* Inheritance & Polymorphism: Extending classes, abstract classes, and the this and super keywords.
+* Interfaces & Nested Classes: Defining interfaces and using internal class structures.
+
+Module 5: Graphical User Interface (GUI) Programming
+* Basic GUI: Graphics, drawing, and the event-driven programming model (Mouse/Keyboard events).
+* Components & Layout: Using standard components (buttons, text fields), layout managers, menus, and dialogs.
+* Advanced GUI: Working with Graphics2D, images, actions, and the Model-View-Controller (MVC) pattern.
+
+Module 6: Data Structures & Algorithms
+* Arrays: Creating, using, and programming with arrays; Dynamic arrays and ArrayList.
+* Linked Structures: Recursion, linked lists, and binary trees.
+* Generic Programming: Collection classes (Lists, Sets, Maps) and writing generic code.
+
+Module 7: Robustness & Systems
+* Correctness: Writing robust programs, assertions, and basic algorithm analysis.
+* Files & Networking: Streams, Readers, and Writers. File manipulation and networking basics. Network programming (Client/Server) and HTTP.
+* XML: A brief introduction to processing XML data.

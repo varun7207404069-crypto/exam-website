@@ -6,88 +6,88 @@ const html = htm.bind(React.createElement);
 
 export const SUBJECTS = [
     // ── Year I – Semester I ──
-    { name: 'Linear Algebra & Ordinary Differential Equations', icon: '📐', tag: 'Year I', noProgramming: true },
-    { name: 'Semiconductor Physics & Electromagnetics',         icon: '🔬', tag: 'Year I', noProgramming: true },
-    { name: 'Electrical & Electronics Engineering',             icon: '⚡', tag: 'Year I', noProgramming: true },
-    { name: 'Engineering Chemistry',                            icon: '🧪', tag: 'Year I', noProgramming: true },
-    { name: 'Python Programming',                               icon: '🐍', tag: 'Year I' },
-    { name: 'Problem Solving through Programming - I',          icon: '💻', tag: 'Year I' },
-    { name: 'English Proficiency & Communication Skills',       icon: '🗣️', tag: 'Year I', noProgramming: true },
-    { name: 'Constitution of India',                            icon: '📜', tag: 'Year I', noProgramming: true },
+    { name: 'Linear Algebra & Ordinary Differential Equations', tag: 'Year I', noProgramming: true },
+    { name: 'Semiconductor Physics & Electromagnetics',         tag: 'Year I', noProgramming: true },
+    { name: 'Electrical & Electronics Engineering',             tag: 'Year I', noProgramming: true },
+    { name: 'Engineering Chemistry',                            tag: 'Year I', noProgramming: true },
+    { name: 'Python Programming',                               tag: 'Year I' },
+    { name: 'Problem Solving through Programming - I',          tag: 'Year I' },
+    { name: 'English Proficiency & Communication Skills',       tag: 'Year I', noProgramming: true },
+    { name: 'Constitution of India',                            tag: 'Year I', noProgramming: true },
 
     // ── Year I – Semester II ──
-    { name: 'Algebra',                                          icon: '➗', tag: 'Year I', noProgramming: true },
-    { name: 'Discrete Mathematical Structures',                 icon: '🔢', tag: 'Year I', noProgramming: true },
-    { name: 'Engineering Graphics',                             icon: '📏', tag: 'Year I', noProgramming: true },
-    { name: 'C Programming',                                    icon: '⌨️', tag: 'Year I' },
-    { name: 'Problem Solving through Programming - II',         icon: '🖥️', tag: 'Year I' },
-    { name: 'Technical English Communication',                  icon: '📝', tag: 'Year I', noProgramming: true },
-    { name: 'Numerical Methods',                                icon: '📊', tag: 'Year I', noProgramming: true },
+    { name: 'Algebra',                                          tag: 'Year I', noProgramming: true },
+    { name: 'Discrete Mathematical Structures',                 tag: 'Year I', noProgramming: true },
+    { name: 'Engineering Graphics',                             tag: 'Year I', noProgramming: true },
+    { name: 'C Programming',                                    tag: 'Year I' },
+    { name: 'Problem Solving through Programming - II',         tag: 'Year I' },
+    { name: 'Technical English Communication',                  tag: 'Year I', noProgramming: true },
+    { name: 'Numerical Methods',                                tag: 'Year I', noProgramming: true },
 
     // ── Year II – Semester I ──
-    { name: 'Probability & Statistics',                         icon: '📉', tag: 'Year II', noProgramming: true },
-    { name: 'Data Structures',                                  icon: '🌳', tag: 'Year II' },
-    { name: 'Management Science',                               icon: '📋', tag: 'Year II', noProgramming: true },
-    { name: 'Database Management Systems',                      icon: '🗄️', tag: 'Year II' },
-    { name: 'Digital Logic Design',                             icon: '🔌', tag: 'Year II', noProgramming: true },
-    { name: 'OOPs through JAVA',                                icon: '☕', tag: 'Year II' },
-    { name: 'Environmental Studies',                            icon: '🌿', tag: 'Year II', noProgramming: true },
+    { name: 'Probability & Statistics',                         tag: 'Year II', noProgramming: true },
+    { name: 'Data Structures',                                  tag: 'Year II' },
+    { name: 'Management Science',                               tag: 'Year II', noProgramming: true },
+    { name: 'Database Management Systems',                      tag: 'Year II' },
+    { name: 'Digital Logic Design',                             tag: 'Year II', noProgramming: true },
+    { name: 'OOPs through JAVA',                                tag: 'Year II' },
+    { name: 'Environmental Studies',                            tag: 'Year II', noProgramming: true },
 
     // ── Year II – Semester II ──
-    { name: 'Advanced Coding Consistency',                      icon: '⚙️', tag: 'Year II' },
-    { name: 'Professional Communication',                       icon: '💬', tag: 'Year II', noProgramming: true },
-    { name: 'Computer Organisation & Architecture',             icon: '💾', tag: 'Year II', noProgramming: true },
-    { name: 'Design & Analysis of Algorithms',                  icon: '🔍', tag: 'Year II' },
-    { name: 'Operating Systems',                                icon: '🖱️', tag: 'Year II', noProgramming: true },
-    { name: 'Theory of Computation',                            icon: '🔄', tag: 'Year II', noProgramming: true },
+    { name: 'Advanced Coding Consistency',                      tag: 'Year II' },
+    { name: 'Professional Communication',                       tag: 'Year II', noProgramming: true },
+    { name: 'Computer Organisation & Architecture',             tag: 'Year II', noProgramming: true },
+    { name: 'Design & Analysis of Algorithms',                  tag: 'Year II' },
+    { name: 'Operating Systems',                                tag: 'Year II', noProgramming: true },
+    { name: 'Theory of Computation',                            tag: 'Year II', noProgramming: true },
 
     // ── Year III – Semester I ──
-    { name: 'Soft Skills Laboratory',                           icon: '🤝', tag: 'Year III', noProgramming: true },
-    { name: 'Introduction to Artificial Intelligence',          icon: '🧠', tag: 'Year III', noProgramming: true },
-    { name: 'Compiler Design',                                  icon: '🔧', tag: 'Year III', noProgramming: true },
-    { name: 'Web Technologies',                                 icon: '🕸️', tag: 'Year III' },
-    { name: 'Mini Project - Phase I',                           icon: '🛠️', tag: 'Year III', noProgramming: true },
+    { name: 'Soft Skills Laboratory',                           tag: 'Year III', noProgramming: true },
+    { name: 'Introduction to Artificial Intelligence',          tag: 'Year III', noProgramming: true },
+    { name: 'Compiler Design',                                  tag: 'Year III', noProgramming: true },
+    { name: 'Web Technologies',                                 tag: 'Year III' },
+    { name: 'Mini Project - Phase I',                           tag: 'Year III', noProgramming: true },
 
     // ── Year III – Semester II ──
-    { name: 'Quantitative Aptitude & Logical Reasoning',        icon: '🧮', tag: 'Year III', noProgramming: true },
-    { name: 'Computer Networks',                                icon: '🌐', tag: 'Year III', noProgramming: true },
-    { name: 'Data Mining & Intelligence',                       icon: '⛏️', tag: 'Year III', noProgramming: true },
-    { name: 'Software Engineering',                             icon: '🏗️', tag: 'Year III', noProgramming: true },
-    { name: 'Mini Project - Phase II',                          icon: '🚀', tag: 'Year III', noProgramming: true },
+    { name: 'Quantitative Aptitude & Logical Reasoning',        tag: 'Year III', noProgramming: true },
+    { name: 'Computer Networks',                                tag: 'Year III', noProgramming: true },
+    { name: 'Data Mining & Intelligence',                       tag: 'Year III', noProgramming: true },
+    { name: 'Software Engineering',                             tag: 'Year III', noProgramming: true },
+    { name: 'Mini Project - Phase II',                          tag: 'Year III', noProgramming: true },
 
     // ── Year IV – Semester I ──
-    { name: 'Cryptography & Network Security',                  icon: '🔐', tag: 'Year IV', noProgramming: true },
-    { name: 'Big Data Analytics',                               icon: '📦', tag: 'Year IV', noProgramming: true },
-    { name: 'Cloud Computing',                                  icon: '☁️', tag: 'Year IV', noProgramming: true },
+    { name: 'Cryptography & Network Security',                  tag: 'Year IV', noProgramming: true },
+    { name: 'Big Data Analytics',                               tag: 'Year IV', noProgramming: true },
+    { name: 'Cloud Computing',                                  tag: 'Year IV', noProgramming: true },
 
     // ── Year IV – Semester II ──
-    { name: 'Project Work',                                     icon: '🎓', tag: 'Year IV', noProgramming: true },
+    { name: 'Project Work',                                     tag: 'Year IV', noProgramming: true },
 
     // ── Department Electives ──
-    { name: 'Advanced Data Structures',                         icon: '🌲', tag: 'Electives' },
-    { name: 'Advanced JAVA Programming',                        icon: '♨️', tag: 'Electives' },
-    { name: 'Computer Graphics',                                icon: '🎨', tag: 'Electives', noProgramming: true },
-    { name: 'Deep Learning',                                    icon: '🤖', tag: 'Electives', noProgramming: true },
-    { name: 'Digital Forensics',                                icon: '🔎', tag: 'Electives', noProgramming: true },
-    { name: 'Digital Image Processing',                         icon: '🖼️', tag: 'Electives', noProgramming: true },
-    { name: 'Web & Database Security',                          icon: '🛡️', tag: 'Electives', noProgramming: true },
-    { name: 'Machine Learning',                                 icon: '⚙️', tag: 'Electives', noProgramming: true },
-    { name: 'Mobile Ad-hoc Networks',                           icon: '📡', tag: 'Electives', noProgramming: true },
-    { name: 'Mobile Application Development',                   icon: '📱', tag: 'Electives', noProgramming: true },
-    { name: 'Text Mining',                                      icon: '🔤', tag: 'Electives', noProgramming: true },
-    { name: 'Numerical Algorithms',                             icon: '🔢', tag: 'Electives', noProgramming: true },
-    { name: 'Operating System Design',                          icon: '🖥️', tag: 'Electives', noProgramming: true },
-    { name: 'Optimization Techniques',                          icon: '📈', tag: 'Electives', noProgramming: true },
-    { name: 'Intrusion Detection & Prevention Systems',         icon: '🚨', tag: 'Electives', noProgramming: true },
-    { name: 'Simulation & Modelling',                           icon: '🔭', tag: 'Electives', noProgramming: true },
+    { name: 'Advanced Data Structures',                         tag: 'Electives' },
+    { name: 'Advanced JAVA Programming',                        tag: 'Electives' },
+    { name: 'Computer Graphics',                                tag: 'Electives', noProgramming: true },
+    { name: 'Deep Learning',                                    tag: 'Electives', noProgramming: true },
+    { name: 'Digital Forensics',                                tag: 'Electives', noProgramming: true },
+    { name: 'Digital Image Processing',                         tag: 'Electives', noProgramming: true },
+    { name: 'Web & Database Security',                          tag: 'Electives', noProgramming: true },
+    { name: 'Machine Learning',                                 tag: 'Electives', noProgramming: true },
+    { name: 'Mobile Ad-hoc Networks',                           tag: 'Electives', noProgramming: true },
+    { name: 'Mobile Application Development',                   tag: 'Electives', noProgramming: true },
+    { name: 'Text Mining',                                      tag: 'Electives', noProgramming: true },
+    { name: 'Numerical Algorithms',                             tag: 'Electives', noProgramming: true },
+    { name: 'Operating System Design',                          tag: 'Electives', noProgramming: true },
+    { name: 'Optimization Techniques',                          tag: 'Electives', noProgramming: true },
+    { name: 'Intrusion Detection & Prevention Systems',         tag: 'Electives', noProgramming: true },
+    { name: 'Simulation & Modelling',                           tag: 'Electives', noProgramming: true },
 
     // ── Honours for CSE ──
-    { name: 'Advanced Graph Algorithms',                        icon: '🕸️', tag: 'Honours', noProgramming: true },
-    { name: 'Blockchain',                                       icon: '⛓️', tag: 'Honours', noProgramming: true },
-    { name: 'Parallel & Distributed Computing',                 icon: '⚡', tag: 'Honours', noProgramming: true },
-    { name: 'Internet of Things',                               icon: '📟', tag: 'Honours', noProgramming: true },
-    { name: 'Wireless Sensor Networks',                         icon: '📶', tag: 'Honours', noProgramming: true },
-    { name: 'Capstone Project',                                 icon: '🏆', tag: 'Honours', noProgramming: true },
+    { name: 'Advanced Graph Algorithms',                        tag: 'Honours', noProgramming: true },
+    { name: 'Blockchain',                                       tag: 'Honours', noProgramming: true },
+    { name: 'Parallel & Distributed Computing',                 tag: 'Honours', noProgramming: true },
+    { name: 'Internet of Things',                               tag: 'Honours', noProgramming: true },
+    { name: 'Wireless Sensor Networks',                         tag: 'Honours', noProgramming: true },
+    { name: 'Capstone Project',                                 tag: 'Honours', noProgramming: true },
 ];
 
 const Dashboard = () => {
@@ -124,6 +124,19 @@ const Dashboard = () => {
 
     const initiateExam = () => {
         if (!hasAgreed) return;
+        
+        // Attempt to enter fullscreen immediately using the user's active click gesture
+        const elem = document.documentElement;
+        const req = elem.requestFullscreen
+            || elem.webkitRequestFullscreen
+            || elem.mozRequestFullScreen
+            || elem.msRequestFullscreen;
+        if (req) {
+            req.call(elem).catch(err => {
+                console.warn("Fullscreen request from Dashboard gesture failed:", err);
+            });
+        }
+
         navigate(`/question/${encodeURIComponent(selectedSubject.name)}?mode=${selectedMode}`);
         setSelectedSubject(null);
         setSelectedMode(null);
@@ -302,7 +315,6 @@ const Dashboard = () => {
                                     className="stu-subject-card" 
                                     onClick=${() => setSelectedSubject(subject)}
                                 >
-                                    <div style=${{fontSize: '2rem', marginBottom: '10px'}}>${subject.icon}</div>
                                     <h3 style=${{marginBottom: '8px', fontSize: '1.05rem', color: 'var(--text-primary)', lineHeight: '1.3'}}>${subject.name}</h3>
                                     <div className="stu-btn-outline" style=${{marginTop: 'auto', textAlign: 'center'}}>
                                         Start Exam →

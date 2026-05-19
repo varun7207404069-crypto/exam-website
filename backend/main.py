@@ -26,6 +26,15 @@ app.add_middleware(
 # Initialize database
 init_db()
 
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "message": "AI Learning & Assessment Platform Backend is running successfully!",
+        "frontend_url": "http://localhost:3002",
+        "docs_url": "http://localhost:8000/docs"
+    }
+
 # Dependency to get DB session
 def get_db():
     db = SessionLocal()
@@ -119,7 +128,16 @@ def create_question(request: QuestionRequest, db: Session = Depends(get_db)):
     syllabus_context = ""
     try:
         import os
-        syllabus_path = os.path.join(os.path.dirname(__file__), "..", "syllabus.txt")
+        base_dir = os.path.dirname(__file__)
+        
+        # Determine syllabus path based on subject
+        if request.subject == "Python Programming":
+            syllabus_path = os.path.join(base_dir, "..", "python_syllabus.txt")
+        elif "JAVA" in request.subject.upper() or "JAVA" == request.subject.upper():
+            syllabus_path = os.path.join(base_dir, "..", "java_syllabus.txt")
+        else:
+            syllabus_path = os.path.join(base_dir, "..", "syllabus.txt")
+            
         if os.path.exists(syllabus_path):
             with open(syllabus_path, "r", encoding="utf-8") as f:
                 syllabus_context = f.read()
@@ -196,11 +214,31 @@ def run_code(request: CodeExecutionRequest):
     
     results = []
     for tc in request.test_cases:
+        stdin_val = tc.get("input")
+        if stdin_val is None:
+            stdin_str = ""
+        elif isinstance(stdin_val, list):
+            stdin_str = "\n".join(str(x) for x in stdin_val)
+        elif isinstance(stdin_val, dict):
+            stdin_str = json.dumps(stdin_val)
+        else:
+            stdin_str = str(stdin_val)
+
+        expected_val = tc.get("expected_output")
+        if expected_val is None:
+            expected_str = ""
+        elif isinstance(expected_val, list):
+            expected_str = "\n".join(str(x) for x in expected_val)
+        elif isinstance(expected_val, dict):
+            expected_str = json.dumps(expected_val)
+        else:
+            expected_str = str(expected_val)
+
         payload = {
             "source_code": request.code,
             "language_id": lang_id,
-            "stdin": tc.get("input", ""),
-            "expected_output": tc.get("expected_output", "")
+            "stdin": stdin_str,
+            "expected_output": expected_str
         }
         
         try:
@@ -218,17 +256,19 @@ def run_code(request: CodeExecutionRequest):
             is_passed = data.get("status", {}).get("id") == 3
             
             results.append({
-                "input": tc.get("input"),
-                "expected": tc.get("expected_output", "").strip(),
+                "input": stdin_str,
+                "expected": expected_str.strip(),
                 "actual": output,
                 "passed": is_passed,
                 "error": stderr + compile_output
             })
         except Exception as e:
             results.append({
-                "input": tc.get("input"),
-                "error": str(e),
-                "passed": False
+                "input": stdin_str,
+                "expected": expected_str.strip(),
+                "actual": "",
+                "passed": False,
+                "error": str(e)
             })
             
     return results
