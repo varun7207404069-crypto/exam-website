@@ -192,10 +192,423 @@ class CodeExecutionRequest(BaseModel):
     language: str
     test_cases: List[dict]
 
+# ─────────────────────────────────────────────
+# SMART CODE STYLE DETECTION & WRAPPER SYSTEM
+# Supports both Standard I/O style AND LeetCode function style.
+# ─────────────────────────────────────────────
+
+import re
+import ast as pyast
+import json
+
+def _parse_input_to_python(raw: str):
+    """Try to parse a raw test case input string into a Python/JSON value."""
+    raw = raw.strip()
+    if not raw:
+        return ""
+    # Try parsing as JSON first
+    try:
+        return json.loads(raw)
+    except Exception:
+        pass
+    
+    # Try parsing as Python literal (like tuple: [1, 2], 3)
+    try:
+        return pyast.literal_eval(raw)
+    except Exception:
+        pass
+    
+    # Fallback: maybe space-separated integers
+    parts = raw.split()
+    if parts:
+        try:
+            return [int(p) for p in parts]
+        except ValueError:
+            pass
+    return raw
+
+def _normalize_and_compare(actual: str, expected: str) -> bool:
+    actual = actual.strip()
+    expected = expected.strip()
+    if actual == expected:
+        return True
+    
+    # Try removing all whitespace and newlines/carriage returns
+    norm_actual_ws = actual.replace(" ", "").replace("\n", "").replace("\r", "")
+    norm_expected_ws = expected.replace(" ", "").replace("\n", "").replace("\r", "")
+    if norm_actual_ws == norm_expected_ws:
+        return True
+    
+    # Try normalizing quotes (' vs ") and brackets vs parentheses
+    norm_actual_brackets = norm_actual_ws.replace("'", '"').replace("(", "[").replace(")", "]")
+    norm_expected_brackets = norm_expected_ws.replace("'", '"').replace("(", "[").replace(")", "]")
+    if norm_actual_brackets == norm_expected_brackets:
+        return True
+
+    # Try normalizing casing as well (case-insensitive) for structural comparisons
+    if norm_actual_brackets.lower() == norm_expected_brackets.lower():
+        return True
+    
+    # Try parsing as python/JSON structures and comparing them
+    try:
+        act_val = _parse_input_to_python(actual)
+        exp_val = _parse_input_to_python(expected)
+        if act_val == exp_val:
+            return True
+        if isinstance(act_val, (list, tuple)) and isinstance(exp_val, (list, tuple)):
+            if len(act_val) == len(exp_val):
+                match = True
+                for a, e in zip(act_val, exp_val):
+                    sa = str(a).replace(" ", "").replace("'", '"').replace("(", "[").replace(")", "]").lower()
+                    se = str(e).replace(" ", "").replace("'", '"').replace("(", "[").replace(")", "]").lower()
+                    if sa != se:
+                        match = False
+                        break
+                if match:
+                    return True
+    except Exception:
+        pass
+    
+    return False
+
+def _python_uses_stdin(code: str) -> bool:
+    """Return True if the code explicitly reads from stdin."""
+    patterns = [r'\binput\s*\(', r'sys\.stdin', r'fileinput', r'stdin\.read']
+    return any(re.search(p, code) for p in patterns)
+
+def _python_detect_callable(code: str):
+    """
+    Detects the callable structure in the Python user code.
+    Returns (class_name, method_name, has_self) or (None, function_name, False) or (None, None, False).
+    """
+    try:
+        tree = pyast.parse(code)
+        # Look for top-level functions first
+        for node in tree.body:
+            if isinstance(node, pyast.FunctionDef):
+                return None, node.name, False
+        # Look for class definitions
+        for node in tree.body:
+            if isinstance(node, pyast.ClassDef):
+                for subnode in node.body:
+                    if isinstance(subnode, pyast.FunctionDef):
+                        if not subnode.name.startswith("__"):
+                            args = subnode.args.args
+                            has_self = len(args) > 0 and args[0].arg == 'self'
+                            return node.name, subnode.name, has_self
+    except Exception:
+        pass
+    return None, None, False
+
+def _build_python_args(parsed):
+    if isinstance(parsed, tuple):
+        return ", ".join(repr(x) for x in parsed)
+    elif isinstance(parsed, dict):
+        return ", ".join(f"{k}={repr(v)}" for k, v in parsed.items())
+    else:
+        return repr(parsed)
+
+def _build_python_wrapper(user_code: str, raw_input: str) -> str:
+    """
+    Build final Python source that will work regardless of coding style:
+    - If code reads stdin ➜ pass input as stdin, run as-is.
+    - If code defines a function/class ➜ call the function with parsed args and print result.
+    """
+    if _python_uses_stdin(user_code):
+        return user_code  # stdin style — no modification needed
+
+    class_name, fn_name, has_self = _python_detect_callable(user_code)
+    if not fn_name:
+        return user_code  # no function found — run as-is
+
+    parsed = _parse_input_to_python(raw_input)
+    args_str = _build_python_args(parsed)
+
+    if class_name:
+        if has_self:
+            call_expr = f"{class_name}().{fn_name}({args_str})"
+        else:
+            call_expr = f"{class_name}.{fn_name}({args_str})"
+    else:
+        call_expr = f"{fn_name}({args_str})"
+
+    wrapper = f"""from typing import *
+{user_code}
+
+# ── hidden auto-runner ──
+if __name__ == '__main__':
+    import json as _json
+    _result = {call_expr}
+    if _result is not None:
+        if isinstance(_result, (list, dict)):
+            print(_json.dumps(_result))
+        else:
+            print(_result)
+"""
+    return wrapper
+
+def _java_uses_stdin(code: str) -> bool:
+    patterns = [r'Scanner', r'BufferedReader', r'System\.in', r'InputStreamReader']
+    return any(re.search(p, code) for p in patterns)
+
+def _val_to_java(val):
+    if isinstance(val, list):
+        if val and isinstance(val[0], list):
+            # Nested list: 2D array
+            inner_type = "int"
+            flat_elements = []
+            for sub in val:
+                if isinstance(sub, list):
+                    for item in sub:
+                        flat_elements.append(item)
+            if all(isinstance(x, str) for x in flat_elements):
+                inner_type = "String"
+            elif all(isinstance(x, float) for x in flat_elements):
+                inner_type = "double"
+            
+            rows = []
+            for sub in val:
+                if isinstance(sub, list):
+                    sub_elements = ", ".join(_val_to_java(x) for x in sub)
+                    rows.append(f"{{{sub_elements}}}")
+                else:
+                    rows.append(f"{{{_val_to_java(sub)}}}")
+            arr_str = ", ".join(rows)
+            return f"new {inner_type}[][] {{{arr_str}}}"
+        else:
+            # 1D list
+            if not val:
+                return "new int[]{}"
+            if all(isinstance(x, str) for x in val):
+                items = ", ".join('"' + x.replace('"', '\\"') + '"' for x in val)
+                return f"new String[]{{{items}}}"
+            elif all(isinstance(x, float) for x in val):
+                items = ", ".join(str(x) for x in val)
+                return f"new double[]{{{items}}}"
+            else:
+                items = ", ".join(str(x) for x in val)
+                return f"new int[]{{{items}}}"
+    elif isinstance(val, bool):
+        return "true" if val else "false"
+    elif isinstance(val, int):
+        return str(val)
+    elif isinstance(val, float):
+        return str(val)
+    elif isinstance(val, str):
+        escaped = val.replace('"', '\\"')
+        return f'"{escaped}"'
+    elif isinstance(val, dict):
+        # Convert to JSON string
+        escaped = json.dumps(val).replace('"', '\\"')
+        return f'"{escaped}"'
+    else:
+        return str(val)
+
+def _val_to_java_typed(val, java_type: str):
+    java_type = java_type.strip()
+    if "List" in java_type:
+        if isinstance(val, list):
+            elements = ", ".join(_val_to_java(x) for x in val)
+            return f"java.util.Arrays.asList({elements})"
+        else:
+            return f"java.util.Arrays.asList({_val_to_java(val)})"
+    elif "Set" in java_type:
+        if isinstance(val, list):
+            elements = ", ".join(_val_to_java(x) for x in val)
+            return f"new java.util.HashSet(java.util.Arrays.asList({elements}))"
+        else:
+            return f"new java.util.HashSet(java.util.Arrays.asList({_val_to_java(val)}))"
+    return _val_to_java(val)
+
+def _build_java_wrapper(user_code: str, raw_input: str) -> str:
+    """
+    If the student wrote a Java method but no Scanner, wrap it so the Main
+    class calls their method with parsed arguments.
+    """
+    if _java_uses_stdin(user_code):
+        return user_code
+
+    # Strip 'public' keyword from class declarations to avoid compile errors in Main.java
+    user_code = re.sub(r'\bpublic\s+class\s+', 'class ', user_code)
+
+    # Detect method signature
+    method_match = re.search(
+        r'(?:public|private|protected|static|\s)+([\w<>\[\]]+)\s+(\w+)\s*\(([^)]*)\)\s*\{',
+        user_code
+    )
+    if not method_match:
+        return user_code
+
+    return_type = method_match.group(1)
+    fn_name = method_match.group(2)
+    params = method_match.group(3)
+
+    if fn_name == "main":
+        return user_code  # already has a main
+
+    # Detect the class name
+    class_match = re.search(r'\bclass\s+(\w+)', user_code)
+    class_name = class_match.group(1) if class_match else "Solution"
+
+    is_static = "static" in method_match.group(0)
+
+    # Parse parameter types
+    param_types = []
+    current = []
+    depth = 0
+    for char in params:
+        if char == '<':
+            depth += 1
+        elif char == '>':
+            depth -= 1
+        
+        if char == ',' and depth == 0:
+            parts = "".join(current).strip().split()
+            if parts:
+                param_types.append(parts[0])
+            current = []
+        else:
+            current.append(char)
+    if current:
+        parts = "".join(current).strip().split()
+        if parts:
+            param_types.append(parts[0])
+
+    # Parse input and map to Java types
+    parsed = _parse_input_to_python(raw_input)
+    if isinstance(parsed, tuple):
+        if len(parsed) == len(param_types):
+            args_str = ", ".join(_val_to_java_typed(x, t) for x, t in zip(parsed, param_types))
+        else:
+            args_str = ", ".join(_val_to_java(x) for x in parsed)
+    else:
+        if len(param_types) == 1:
+            args_str = _val_to_java_typed(parsed, param_types[0])
+        else:
+            args_str = _val_to_java(parsed)
+
+    # Build the call expression
+    if is_static:
+        call_expr = f"{class_name}.{fn_name}({args_str})"
+    else:
+        call_expr = f"new {class_name}().{fn_name}({args_str})"
+
+    # Print logic based on return type
+    if return_type.endswith("[][]"):
+        print_stmt = f"System.out.println(java.util.Arrays.deepToString({call_expr}));"
+    elif return_type.endswith("[]"):
+        print_stmt = f"System.out.println(java.util.Arrays.toString({call_expr}));"
+    elif return_type == "void":
+        print_stmt = f"{call_expr};"
+    else:
+        print_stmt = f"System.out.println({call_expr});"
+
+    # If the student's class is Main, insert main inside it
+    if class_name == "Main":
+        insert = f"""
+    public static void main(String[] args) {{
+        {print_stmt}
+    }}
+"""
+        last_brace = user_code.rfind("}")
+        if last_brace != -1:
+            wrapper = user_code[:last_brace] + insert + "\n}"
+        else:
+            wrapper = user_code + "\n" + insert
+    else:
+        # Otherwise, append a separate Main class at the end
+        wrapper = f"""{user_code}
+
+class Main {{
+    public static void main(String[] args) {{
+        {print_stmt}
+    }}
+}}
+"""
+    return wrapper
+
+def _js_uses_stdin(code: str) -> bool:
+    patterns = [r'readFileSync', r'readline', r'process\.stdin', r'require\(["\']fs["\']\)']
+    return any(re.search(p, code) for p in patterns)
+
+def _js_detect_callable(code: str):
+    """
+    Detects JS function or class method.
+    Returns (class_name, method_name)
+    """
+    class_match = re.search(r'\bclass\s+(\w+)', code)
+    if class_match:
+        class_name = class_match.group(1)
+        methods = re.findall(r'\b(\w+)\s*\([^)]*\)\s*\{', code)
+        for m in methods:
+            if m not in ('constructor', 'if', 'for', 'while', 'switch', 'catch'):
+                return class_name, m
+        return class_name, None
+
+    fn_match = re.search(r'\bfunction\s+(\w+)', code)
+    if fn_match:
+        return None, fn_match.group(1)
+    
+    var_fn_match = re.search(r'\b(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>)', code)
+    if var_fn_match:
+        return None, var_fn_match.group(1)
+
+    return None, None
+
+def _val_to_js(val):
+    if isinstance(val, (list, dict)):
+        return json.dumps(val)
+    elif isinstance(val, bool):
+        return "true" if val else "false"
+    elif val is None:
+        return "null"
+    else:
+        return json.dumps(val)
+
+def _build_js_wrapper(user_code: str, raw_input: str) -> str:
+    if _js_uses_stdin(user_code):
+        return user_code
+
+    class_name, fn_name = _js_detect_callable(user_code)
+    if not fn_name:
+        return user_code
+
+    parsed = _parse_input_to_python(raw_input)
+    if isinstance(parsed, tuple):
+        args_str = ", ".join(_val_to_js(x) for x in parsed)
+    else:
+        args_str = _val_to_js(parsed)
+
+    if class_name:
+        call = f"new {class_name}().{fn_name}({args_str})"
+    else:
+        call = f"{fn_name}({args_str})"
+
+    wrapper = f"""{user_code}
+
+// ── hidden auto-runner ──
+const _result = {call};
+if (typeof _result === 'object' && _result !== null) {{
+    console.log(JSON.stringify(_result));
+}} else if (_result !== undefined) {{
+    console.log(_result);
+}}
+"""
+    return wrapper
+
+def prepare_code(language: str, user_code: str, raw_input: str) -> str:
+    """Entry point: route to the correct wrapper builder."""
+    if language == "Python":
+        return _build_python_wrapper(user_code, raw_input)
+    elif language == "Java":
+        return _build_java_wrapper(user_code, raw_input)
+    elif language == "JavaScript":
+        return _build_js_wrapper(user_code, raw_input)
+    return user_code
+
+
 @app.post("/run-code")
 def run_code(request: CodeExecutionRequest):
-    # Map frontend language names to Judge0 language IDs
-    # IDs: Python (71), Java (62), C (50), C++ (54), JavaScript (63), C# (51), PHP (68), Ruby (72), Go (60)
     lang_map = {
         "Python": 71,
         "Java": 62,
@@ -207,11 +620,11 @@ def run_code(request: CodeExecutionRequest):
         "Ruby": 72,
         "Go": 60
     }
-    
+
     lang_id = lang_map.get(request.language)
     if not lang_id:
         raise HTTPException(status_code=400, detail="Unsupported language")
-    
+
     results = []
     for tc in request.test_cases:
         stdin_val = tc.get("input")
@@ -234,27 +647,34 @@ def run_code(request: CodeExecutionRequest):
         else:
             expected_str = str(expected_val)
 
+        # ── SMART WRAPPER: prepare the code for both styles ──
+        final_code = prepare_code(request.language, request.code, stdin_str)
+
         payload = {
-            "source_code": request.code,
+            "source_code": final_code,
             "language_id": lang_id,
-            "stdin": stdin_str,
+            "stdin": stdin_str,          # still passed; stdin-style code will use it
             "expected_output": expected_str
         }
-        
+
         try:
-            # Use Judge0 CE public instance
-            resp = requests.post("https://ce.judge0.com/submissions?base64_encoded=false&wait=true", json=payload, timeout=15)
+            resp = requests.post(
+                "https://ce.judge0.com/submissions?base64_encoded=false&wait=true",
+                json=payload, timeout=15
+            )
             data = resp.json()
-            
-            output = data.get("stdout") or ""
-            output = output.strip()
-            
+
+            output = (data.get("stdout") or "").strip()
             stderr = data.get("stderr") or ""
             compile_output = data.get("compile_output") or ""
             
-            # Judge0 status: 3 is 'Accepted'
-            is_passed = data.get("status", {}).get("id") == 3
-            
+            status_id = data.get("status", {}).get("id")
+            is_passed = status_id == 3
+            if not is_passed and status_id == 4:
+                # Wrong Answer according to Judge0, let's check our flexible comparison
+                if _normalize_and_compare(output, expected_str):
+                    is_passed = True
+
             results.append({
                 "input": stdin_str,
                 "expected": expected_str.strip(),
@@ -270,7 +690,7 @@ def run_code(request: CodeExecutionRequest):
                 "passed": False,
                 "error": str(e)
             })
-            
+
     return results
 
 # --- Authentication Endpoints ---
@@ -314,6 +734,8 @@ class LoginRequest(BaseModel):
 def login_user(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
     if not user or not pwd_context.verify(request.password, user.password):
+        with open("login_debug.txt", "a") as f:
+            f.write(f"FAILED: email='{request.email}', pwd='{request.password}'\n")
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     return {
@@ -334,18 +756,21 @@ class SessionStartRequest(BaseModel):
 
 @app.post("/sessions/start")
 def start_session(request: SessionStartRequest, db: Session = Depends(get_db)):
-    # Check for existing active session
-    active = db.query(ExamSession).filter(
-        ExamSession.user_id == request.user_id,
-        ExamSession.subject == request.subject,
-        ExamSession.is_active == 1
-    ).first()
+    # Check for existing active session (only for registered users)
+    u_id = request.user_id if request.user_id != 0 else None
+    active = None
+    if u_id is not None:
+        active = db.query(ExamSession).filter(
+            ExamSession.user_id == u_id,
+            ExamSession.subject == request.subject,
+            ExamSession.is_active == 1
+        ).first()
     
     if active:
         return active
     
     new_session = ExamSession(
-        user_id=request.user_id,
+        user_id=u_id,
         subject=request.subject,
         mode=request.mode,
         difficulty=request.difficulty,
@@ -359,6 +784,8 @@ def start_session(request: SessionStartRequest, db: Session = Depends(get_db)):
 
 @app.get("/sessions/active/{user_id}/{subject}")
 def get_active_session(user_id: int, subject: str, db: Session = Depends(get_db)):
+    if user_id == 0:
+        return {"session": None}
     session = db.query(ExamSession).filter(
         ExamSession.user_id == user_id,
         ExamSession.subject == subject,
@@ -412,16 +839,18 @@ def get_admin_stats(db: Session = Depends(get_db)):
     total_exams = db.query(ExamSession).count()
     
     # All sessions for leaderboards and logs
-    all_sessions = db.query(ExamSession, User.name).join(User, ExamSession.user_id == User.id).order_by(ExamSession.start_time.desc()).all()
+    all_sessions = db.query(ExamSession, User.name).outerjoin(User, ExamSession.user_id == User.id).order_by(ExamSession.start_time.desc()).all()
     
     # Calculate performers
     user_stats = {}
     for s, user_name in all_sessions:
-        if s.user_id not in user_stats:
-            user_stats[s.user_id] = {"total_score": 0, "total_qs": 0, "exams": 0, "name": user_name}
-        user_stats[s.user_id]["total_score"] += s.current_score
-        user_stats[s.user_id]["total_qs"] += s.total_questions or 1
-        user_stats[s.user_id]["exams"] += 1
+        uid = s.user_id or 0
+        name = user_name or "Guest"
+        if uid not in user_stats:
+            user_stats[uid] = {"total_score": 0, "total_qs": 0, "exams": 0, "name": name}
+        user_stats[uid]["total_score"] += s.current_score
+        user_stats[uid]["total_qs"] += s.total_questions or 1
+        user_stats[uid]["exams"] += 1
         
     performer_list = []
     for uid, data in user_stats.items():
@@ -440,7 +869,7 @@ def get_admin_stats(db: Session = Depends(get_db)):
             {
                 "id": s.id,
                 "user_id": s.user_id,
-                "user_name": user_name,
+                "user_name": user_name or "Guest",
                 "subject": s.subject,
                 "score": s.current_score,
                 "total": s.total_questions,

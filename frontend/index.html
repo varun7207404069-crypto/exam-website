@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
     <script type="importmap">
     {
       "imports": {
@@ -17,12 +18,24 @@
         "react-router-dom": "https://esm.sh/react-router-dom@6.11.2?deps=react@18.2.0",
         "htm": "https://esm.sh/htm@3.1.1?deps=react@18.2.0",
         "chart.js/auto": "https://esm.sh/chart.js/auto",
-        "jspdf": "https://esm.sh/jspdf@2.5.1"
+        "jspdf": "https://esm.sh/jspdf@2.5.1",
+        "@monaco-editor/react": "https://esm.sh/@monaco-editor/react?deps=react@18.2.0"
       }
     }
     </script>
     
-    <!-- AI Proctoring Models -->
+    <!-- PrismJS Scripts for Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup-templating.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-ruby.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -35,9 +48,11 @@
         }
         
         window.addEventListener('error', function(e) {
+            document.body.innerHTML += '<div class="error-log" style="color:red; background:white; position:fixed; top:0; z-index:9999;">' + e.message + ' at ' + e.filename + ':' + e.lineno + '</div>';
             fetch('/log_error?msg=' + encodeURIComponent(e.message + ' at ' + e.filename + ':' + e.lineno));
         });
         window.addEventListener('unhandledrejection', function(e) {
+            document.body.innerHTML += '<div class="error-log" style="color:red; background:white; position:fixed; top:0; z-index:9999;">' + e.reason + '</div>';
             fetch('/log_error?msg=' + encodeURIComponent('Unhandled Promise: ' + e.reason));
         });
     </script>

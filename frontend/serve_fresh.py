@@ -24,7 +24,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         print(f"[Fresh Server] {self.address_string()} - {format % args}")
 
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+with ThreadingHTTPServer(("", PORT), Handler) as httpd:
     print(f"Fresh server running at http://localhost:{PORT}")
     print("Open this URL in your browser for guaranteed fresh JS (no cache).")
     httpd.serve_forever()

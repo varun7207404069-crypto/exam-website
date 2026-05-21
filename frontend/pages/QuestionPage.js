@@ -3,6 +3,19 @@ import htm from 'htm';
 import { useParams, useNavigate } from 'react-router-dom';
 import { SUBJECTS } from './Dashboard.js';
 import { jsPDF } from 'jspdf';
+import Editor from '@monaco-editor/react';
+
+const LANGUAGE_TEMPLATES = {
+    'Python': 'import sys\n\ndef main():\n    # Write your code here\n    pass\n\nif __name__ == "__main__":\n    main()',
+    'Java': 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        // Write your code here\n    }\n}',
+    'C++': '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your code here\n    return 0;\n}',
+    'C': '#include <stdio.h>\n\nint main() {\n    // Write your code here\n    return 0;\n}',
+    'JavaScript': 'const fs = require("fs");\nconst input = fs.readFileSync("/dev/stdin", "utf-8");\n\nfunction main() {\n    // Write your code here\n}\nmain();',
+    'C#': 'using System;\n\nclass Solution {\n    static void Main(String[] args) {\n        // Write your code here\n    }\n}',
+    'PHP': '<?php\n// Write your code here\n?>',
+    'Ruby': '# Write your code here',
+    'Go': 'package main\n\nimport "fmt"\n\nfunc main() {\n    // Write your code here\n}'
+};
 
 const html = htm.bind(React.createElement);
 
@@ -15,7 +28,7 @@ const QuestionPage = () => {
     const [difficulty, setDifficulty] = useState('Basic');
     const [question, setQuestion] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [code, setCode] = useState('// Write your solution here...');
+    const [code, setCode] = useState(LANGUAGE_TEMPLATES['Python']);
     const [language, setLanguage] = useState('Python');
     const languages = ['Python', 'Java', 'C', 'C++', 'JavaScript', 'C#', 'PHP', 'Ruby', 'Go'];
     const [vivaMode, setVivaMode] = useState(initialMode === 'viva');
@@ -120,14 +133,14 @@ const QuestionPage = () => {
         const initSession = async () => {
             try {
                 // 1. Try to find active session
-                const res = await fetch(`http://localhost:8000/sessions/active/${userId}/${encodeURIComponent(subject)}`);
+                const res = await fetch(`http://127.0.0.1:8000/sessions/active/${userId}/${encodeURIComponent(subject)}`);
                 const data = await res.json();
                 
                 let currentSession = data.id ? data : null;
                 
                 // 2. If no active session, start one
                 if (!currentSession) {
-                    const startRes = await fetch('http://localhost:8000/sessions/start', {
+                    const startRes = await fetch('http://127.0.0.1:8000/sessions/start', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -612,7 +625,7 @@ const QuestionPage = () => {
         
         try {
             const testCases = typeof question.test_cases === 'string' ? JSON.parse(question.test_cases) : question.test_cases;
-            const res = await fetch('http://localhost:8000/run-code', {
+            const res = await fetch('http://127.0.0.1:8000/run-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -697,7 +710,7 @@ const QuestionPage = () => {
         setFeedback(null);
         setSelectedOption(null);
         try {
-            const res = await fetch('http://localhost:8000/generate-question', {
+            const res = await fetch('http://127.0.0.1:8000/generate-question', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -749,7 +762,7 @@ const QuestionPage = () => {
         // Formally close session on backend
         if (sessionId) {
             try {
-                await fetch(`http://localhost:8000/sessions/finish/${sessionId}`, { 
+                await fetch(`http://127.0.0.1:8000/sessions/finish/${sessionId}`, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -961,7 +974,7 @@ const QuestionPage = () => {
                 if (vivaMode && vivaAnswer) {
                     // Call backend for AI evaluation
                     try {
-                        const response = await fetch('http://localhost:8000/evaluate-viva', {
+                        const response = await fetch('http://127.0.0.1:8000/evaluate-viva', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1018,7 +1031,7 @@ const QuestionPage = () => {
                 // --- Backend Sync ---
                 if (sessionId) {
                     try {
-                        await fetch('http://localhost:8000/sessions/update', {
+                        await fetch('http://127.0.0.1:8000/sessions/update', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1759,7 +1772,13 @@ const QuestionPage = () => {
                                     <span style=${{fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold'}}>Language:</span>
                                     <select 
                                         value=${language} 
-                                        onChange=${(e) => setLanguage(e.target.value)} 
+                                        onChange=${(e) => {
+                                            const newLang = e.target.value;
+                                            setLanguage(newLang);
+                                            if (!code || Object.values(LANGUAGE_TEMPLATES).includes(code) || code === '// Write your solution here...') {
+                                                setCode(LANGUAGE_TEMPLATES[newLang] || '');
+                                            }
+                                        }} 
                                         className="glass" 
                                         style=${{
                                             padding: '4px 12px', 
@@ -1777,41 +1796,22 @@ const QuestionPage = () => {
                                 </div>
                             </div>
                             
-                            <div style=${{flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', background: 'rgba(0,0,0,0.4)'}}>
-                                <!-- Line Numbers Sidebar -->
-                                <div style=${{
-                                    width: '45px', 
-                                    background: 'rgba(0,0,0,0.3)', 
-                                    borderRight: '1px solid var(--border-dim)',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    paddingTop: '2rem',
-                                    paddingBottom: '2rem',
-                                    alignItems: 'center',
-                                    color: 'var(--text-muted)',
-                                    fontSize: '0.9rem',
-                                    fontFamily: 'monospace',
-                                    userSelect: 'none',
-                                    lineHeight: '1.7'
-                                }}>
-                                    ${code.split('\n').map((_, i) => html`<div key=${i}>${i + 1}</div>`)}
-                                </div>
-                                
-                                <textarea 
-                                    className="editor-textarea" 
+                            <div style=${{flex: 1, overflow: 'hidden', position: 'relative', background: '#1e1e1e'}}>
+                                <${Editor.default || Editor} 
+                                    height="100%" 
+                                    language=${language.toLowerCase() === 'c++' ? 'cpp' : language.toLowerCase()} 
+                                    theme="vs-dark" 
                                     value=${code} 
-                                    onChange=${(e) => setCode(e.target.value)} 
-                                    onKeyDown=${handleKeyDown}
-                                    placeholder=${`Write your ${language} code here...`}
-                                    style=${{
-                                        flex: 1,
-                                        border: 'none',
-                                        borderRadius: 0,
-                                        padding: '2rem 1.5rem',
-                                        background: 'transparent',
-                                        height: '100%'
+                                    onChange=${(val) => setCode(val || '')} 
+                                    options=${{
+                                        minimap: { enabled: false },
+                                        fontSize: 14,
+                                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                                        scrollBeyondLastLine: false,
+                                        smoothScrolling: true,
+                                        padding: { top: 16 }
                                     }}
-                                ></textarea>
+                                />
                             </div>
                             
                             ${(testResults && Array.isArray(testResults)) ? html`

@@ -40,8 +40,8 @@ Start-Process python -ArgumentList "serve_fresh.py" -WorkingDirectory "$PSScript
 Start-Sleep -Seconds 2
 
 # 5. Open browser
-Write-Host "🌐 Opening your browser to http://localhost:3002..." -ForegroundColor Green
-Start-Process "http://localhost:3002"
+Write-Host "🌐 Opening your browser to http://127.0.0.1:3002..." -ForegroundColor Green
+Start-Process "http://127.0.0.1:3002"
 
 Write-Host "=============================================" -ForegroundColor Green
 Write-Host "🎉 Platform successfully launched!" -ForegroundColor Green

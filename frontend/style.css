@@ -548,12 +548,14 @@ footer {
     color: #e2e8f0;
     font-family: 'Fira Code', 'Courier New', monospace;
     font-size: 1.15rem;
-    padding: 2rem;
-    resize: none;
-    outline: none;
     line-height: 1.7;
     border: 1px solid var(--border-dim);
     border-top: none;
+    overflow-y: auto;
+}
+
+.editor-textarea textarea {
+    outline: none !important;
 }
 
 .difficulty-badge {
